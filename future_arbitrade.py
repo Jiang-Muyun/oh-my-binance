@@ -87,8 +87,8 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--leverage', type=int, default=20)
     parser.add_argument('-m','--moment', type=str)
     parser.add_argument('-s','--side', type=str, choices=['long', 'short'])
-    parser.add_argument('-sec1','--seconds_ahead', type=float, default=1.0)
-    parser.add_argument('-sec2','--seconds_behind', type=float, default=1.0)
+    parser.add_argument('-t1','--ahead', type=float, default=1.0)
+    parser.add_argument('-t2','--behind', type=float, default=1.0)
     args = parser.parse_args()
 
     # dstTime = datetime.strptime('2021-04-17 16:00:00', '%Y-%m-%d %H:%M:%S').timestamp()
@@ -103,16 +103,16 @@ if __name__ == '__main__':
     bot = FutureBot(args.sym, args.leverage, RequestClient(api_key=API_Key, secret_key=Secret_Key))
 
     # Make sure the start time is in the future
-    assertDstTimeInFuture(dstTime)
+    assertDstTimeInFuture(dstTime - args.ahead)
 
     # Wait untill the start time
-    waitUntill(dstTime - args.time_ahead, green(msg))
+    waitUntill(dstTime - args.ahead, green(msg))
 
     # Do action1
     bot.placeMarketOrder('sel', args.capital)
 
     # Wait untill the end time
-    waitUntill(dstTime + args.seconds_behind, yellow('准备平仓'))
+    waitUntill(dstTime + args.behind, yellow('准备平仓'))
 
     # Do action2
     bot.placeMarketOrder('buy', args.capital)
