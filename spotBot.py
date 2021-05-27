@@ -9,8 +9,6 @@ from datetime import datetime, timedelta
 from binance.client import Client
 from rich.console import Console
 console = Console()
-from utils import load_binance_api_key
-API_Key, Secret_Key = load_binance_api_key
 
 def getSymbolDecimal(symbol, client=None):
     path_symbol_info = 'symbol_info/%s.json'%(symbol)
@@ -178,6 +176,8 @@ class SpotBot:
         return 1
 
 if __name__ == '__main__':
+    from utils import load_binance_api_key
+    API_Key, Secret_Key = load_binance_api_key('account')
     coins = ['XRP', 'BCH', 'BNB', 'ETH', 'EOS', 'LTC']
     eachActionUSD = 40
     wave = 0.02

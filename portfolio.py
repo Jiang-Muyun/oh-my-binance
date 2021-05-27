@@ -6,7 +6,7 @@ from binance.client import Client
 from rich.console import Console
 console = Console()
 from utils import load_binance_api_key
-API_Key, Secret_Key = load_binance_api_key
+API_Key, Secret_Key = load_binance_api_key('account')
 
 from spotBot import SpotBot
 
