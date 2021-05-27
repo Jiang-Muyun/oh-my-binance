@@ -1,0 +1,8 @@
+__pycache__
+.vscode
+.ipynb_checkpoints
+klines/*
+report/
+price_record/*
+history/*.csv
+api_key/account*.json
