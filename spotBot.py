@@ -49,7 +49,7 @@ class SpotBot:
         if not os.path.exists(self.path_history):
             with open(self.path_history, 'w') as fp:
                 fp.write('bj_time,symbol,side,price,executedQty,clientOrderId\n')
-        self.priceDecimal, self.qtyDecimal = getSymbolDecimal(self.symbol)
+        self.priceDecimal, self.qtyDecimal = getSymbolDecimal(self.symbol, self.client)
 
     def sync(self, client=None):
         if client is not None:
@@ -81,6 +81,7 @@ class SpotBot:
 
         self.currHoldingValue = self.lastPrice * self.holdingQty
         self.currEarn = self.currHoldingValue - self.holdingCost
+        return self
 
     def summary(self):
         # avgRate = (self.lastPrice - self.avgHoldingPrice) /self.lastPrice
@@ -142,6 +143,26 @@ class SpotBot:
         # if cancelled > 0:
         # print(self.symbol, 'cancelled:', cancelled)
         return cancelled
+
+    def place_market_order(self, buy_or_sell, qty_X):
+        assert buy_or_sell in ['sel', 'buy']
+
+        qty = fmtQty(qty_X, self.qtyDecimal)
+
+        console.print('> %s %s (%s / %s)'%(buy_or_sell, qty, self.X, self.Y), end=' ')
+        try:
+            if buy_or_sell == 'buy':
+                self.client.order_market_buy(symbol=self.symbol, quantity=qty)
+            else:
+                self.client.order_market_sell(symbol=self.symbol, quantity=qty)
+
+        except Exception as err:
+            print(err, end=' ')
+            return 0
+        finally:
+            print()
+        
+        return 1
 
     def place_order(self, buy_or_sell, qty_X, atPrice=None, atPercent=None):
         assert buy_or_sell in ['sel', 'buy']

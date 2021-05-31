@@ -65,7 +65,17 @@ class Tock():
 def now():
     return str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-def load_binance_api_key(alias):
-    with open('api_key/%s.json'%(alias), 'r') as fp:
+def load_binance_api_key(alias='account'):
+    key_filename = 'api_key/%s.json'%(alias)
+    if not os.path.exists(key_filename):
+
+        raise FileNotFoundError(
+            'Could not find [api_key/account.json]\n'
+            'Steps to fix\n'
+            '1. Copy the [api_key/example.json] file to [api_key/account.json]\n' 
+            '2. Apply a api key from Binance and fill the info in [api_key/account.json]\n'
+        )
+    
+    with open(key_filename, 'r') as fp:
         data = json.load(fp)
     return data['API_Key'], data['Secret_Key']
