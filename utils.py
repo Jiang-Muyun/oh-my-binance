@@ -79,3 +79,11 @@ def load_binance_api_key(alias='account'):
     with open(key_filename, 'r') as fp:
         data = json.load(fp)
     return data['API_Key'], data['Secret_Key']
+
+def fmtPrice(price, priceDecimal):
+    priceFmt = '%%.%df'%(priceDecimal)
+    return priceFmt%(price)
+
+def fmtQty(qty, qtyDecimal):
+    qtyFmt = '%%.%df'%(qtyDecimal)
+    return qtyFmt%(qty)

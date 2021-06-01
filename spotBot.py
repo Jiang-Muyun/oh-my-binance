@@ -2,10 +2,8 @@ import os
 import time
 import json
 import pandas as pd
-import numpy as np
-import argparse
-from decimal import Decimal
 from datetime import datetime, timedelta
+from utils import *
 from binance.client import Client
 from rich.console import Console
 console = Console()
@@ -30,14 +28,6 @@ def getSymbolDecimal(symbol, client=None):
             minQty = Filter['minQty']
             qtyDecimal = max(0, len(minQty.split('1')[0])-1)
     return priceDecimal, qtyDecimal
-
-def fmtPrice(price, priceDecimal):
-    priceFmt = '%%.%df'%(priceDecimal)
-    return priceFmt%(price)
-
-def fmtQty(qty, qtyDecimal):
-    qtyFmt = '%%.%df'%(qtyDecimal)
-    return qtyFmt%(qty)
 
 class SpotBot:
     def __init__(self, X, Y, client):
