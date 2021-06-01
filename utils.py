@@ -66,14 +66,11 @@ def now():
     return str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 def load_binance_api_key(alias='account'):
-    key_filename = 'api_key/%s.json'%(alias)
+    key_filename = 'private/%s.json'%(alias)
     if not os.path.exists(key_filename):
 
         raise FileNotFoundError(
-            'Could not find [api_key/account.json]\n'
-            'Steps to fix\n'
-            '1. Copy the [api_key/example.json] file to [api_key/account.json]\n' 
-            '2. Apply a api key from Binance and fill the info in [api_key/account.json]\n'
+            yellow('Could not find [private/account.json], Apply a api key from Binance and fill the info in [private/account.json]')
         )
     
     with open(key_filename, 'r') as fp:

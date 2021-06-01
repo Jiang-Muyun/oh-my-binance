@@ -5,4 +5,6 @@ klines/*
 report/
 price_record/*
 history/*.csv
-api_key/account*.json
+private/*.json
+private/symbol_info/*
+private/order_history/*

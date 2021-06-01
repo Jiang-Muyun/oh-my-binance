@@ -15,7 +15,7 @@ coins = ['BTC', 'ETH', 'BNB']
 spotCoin = [SpotBot(coin, 'USDT', client) for coin in coins]
 
 for bot in spotCoin:
-    bot.sync()
+    bot.basic_sync().full_sync()
     print('Sync %s ...'%(bot.X))
 
 print()

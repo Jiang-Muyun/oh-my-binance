@@ -2,14 +2,15 @@ import os
 import time
 import json
 import pandas as pd
-from datetime import datetime, timedelta
+import datetime
 from utils import *
 from binance.client import Client
 from rich.console import Console
 console = Console()
 
 def getSymbolDecimal(symbol, client=None):
-    path_symbol_info = 'symbol_info/%s.json'%(symbol)
+    os.makedirs('private/symbol_info', exist_ok=True)
+    path_symbol_info = 'private/symbol_info/%s.json'%(symbol)
     if not os.path.exists(path_symbol_info):
         if client is None:
             raise ValueError('Must provide a Binance client to get info')
@@ -57,7 +58,8 @@ class SpotBot:
         """
             for X/Y pair, get order history and calc gains
         """
-        self.path_history = 'history/%s.csv'%(self.symbol)
+        os.makedirs('private/order_history', exist_ok=True)
+        self.path_history = 'private/order_history/%s.csv'%(self.symbol)
         if not os.path.exists(self.path_history):
             with open(self.path_history, 'w') as fp:
                 fp.write('bj_time,symbol,side,price,executedQty,clientOrderId\n')
@@ -76,7 +78,7 @@ class SpotBot:
             if order['status'] in ['CANCELED', 'NEW']:
                 continue
  
-            bj_time = datetime.utcfromtimestamp(int(order['updateTime']/1000))+timedelta(hours=8)
+            bj_time = datetime.datetime.utcfromtimestamp(int(order['updateTime']/1000))+datetime.timedelta(hours=8)
             side = order['side']
             price = float(order['price'])
             executedQty = float(order['executedQty'])
