@@ -45,60 +45,36 @@ class SpotBot:
         self.Y = Y
         self.symbol = X+Y
         self.client = client
+        self.history_order_limit = 20
+        self.priceDecimal, self.qtyDecimal = getSymbolDecimal(self.symbol, self.client)
+
+    def basic_sync(self):
+        """
+            for X/Y pair, get latest price, X balance and Y balance
+        """
+        ticker = self.client.get_ticker(symbol=self.symbol)
+        self.price = float(ticker['lastPrice'])
+        X_balance = self.client.get_asset_balance(asset = self.X)
+        Y_balance = self.client.get_asset_balance(asset = self.Y)
+        self.X_free = float(X_balance['free'])
+        self.Y_free = float(Y_balance['free'])
+        self.X_locked = float(X_balance['locked'])
+        self.Y_locked = float(Y_balance['locked'])
+        print('> %s %s, Free: %s/%s %.2f/%s'%(self.X, fmtPrice(self.price, self.priceDecimal), fmtQty(self.X_free, self.qtyDecimal), self.X, self.Y_free, self.Y))
+        return self
+    
+    def full_sync(self):
+        """
+            for X/Y pair, get order history and calc gains
+        """
         self.path_history = 'history/%s.csv'%(self.symbol)
         if not os.path.exists(self.path_history):
             with open(self.path_history, 'w') as fp:
                 fp.write('bj_time,symbol,side,price,executedQty,clientOrderId\n')
-        self.priceDecimal, self.qtyDecimal = getSymbolDecimal(self.symbol, self.client)
-
-    def sync(self, client=None):
-        if client is not None:
-            self.client = client
+        
         self.df = pd.read_csv(self.path_history)
-
-        ticker = self.client.get_ticker(symbol=self.symbol)
-        self.lastPrice = float(ticker['lastPrice'])
-        num_closed_orders = self.update_order_history()
-
-        self.holdingQty = 0
-        self.holdingCost = 0
-        self.maxHoldingCost = 0
-        for index, row in self.df.iterrows():
-            if row['side'] == 'BUY':
-                self.holdingQty += row['executedQty']
-                self.holdingCost += row['price'] * row['executedQty']
-            else:
-                self.holdingQty -= row['executedQty']
-                self.holdingCost -= row['price'] * row['executedQty']
-
-            if self.holdingCost > self.maxHoldingCost:
-                self.maxHoldingCost = self.holdingCost
-            
-        if self.holdingQty < 0.0001:
-            self.avgHoldingPrice = self.lastPrice
-        else:
-            self.avgHoldingPrice = self.holdingCost/self.holdingQty
-
-        self.currHoldingValue = self.lastPrice * self.holdingQty
-        self.currEarn = self.currHoldingValue - self.holdingCost
-        return self
-
-    def summary(self):
-        # avgRate = (self.lastPrice - self.avgHoldingPrice) /self.lastPrice
-        avgRate = self.currEarn / self.maxHoldingCost
-        console.print('%4s/%s [yellow]%9s[/yellow] [magenta]平均成本:%9s[/magenta] |'%(
-            self.X, self.Y, 
-            fmtPrice(self.lastPrice, self.priceDecimal), 
-            fmtPrice(self.avgHoldingPrice, self.priceDecimal)
-        ), end=' ')
-
-        console.print('%8s %4s | [yellow]收益:%6.2f[/yellow] [green]收益率:%6.2f%%[/green] | 成本/持仓价值:%6.2f / %6.2f'%(
-            fmtQty(self.holdingQty, self.qtyDecimal), 
-            self.X, self.currEarn, avgRate * 100, self.holdingCost, self.currHoldingValue
-        ))
-
-    def update_order_history(self):
-        orders = self.client.get_all_orders(symbol=self.symbol, limit=20)
+        
+        orders = self.client.get_all_orders(symbol=self.symbol, limit = self.history_order_limit)
         closed_orders = []
         for order in orders:
             assert order['status'] in ['NEW', 'FILLED', 'CANCELED'], order['status']
@@ -122,11 +98,48 @@ class SpotBot:
         if len(closed_orders) > 0:
             new_df = pd.DataFrame(closed_orders)
             new_df.columns =['bj_time','symbol','side','price','executedQty','clientOrderId']
-            console.print(new_df)
+            print(new_df)
             self.df = pd.concat((self.df, new_df), ignore_index=True)
+            self.df['price'] = self.df['price'].round(self.priceDecimal)
+            self.df['executedQty'] = self.df['executedQty'].round(self.qtyDecimal)
             self.df.to_csv(self.path_history, index=False)
+        
+        self.holdingQty = 0
+        self.holdingCost = 0
+        self.maxHoldingCost = 0
+        for index, row in self.df.iterrows():
+            if row['side'] == 'BUY':
+                self.holdingQty += row['executedQty']
+                self.holdingCost += row['price'] * row['executedQty']
+            else:
+                self.holdingQty -= row['executedQty']
+                self.holdingCost -= row['price'] * row['executedQty']
 
-        return len(closed_orders)
+            if self.holdingCost > self.maxHoldingCost:
+                self.maxHoldingCost = self.holdingCost
+            
+        if self.holdingQty < 0.0001:
+            self.avgHoldingPrice = self.price
+        else:
+            self.avgHoldingPrice = self.holdingCost/self.holdingQty
+
+        self.currHoldingValue = self.price * self.holdingQty
+        self.currEarn = self.currHoldingValue - self.holdingCost
+        return self
+
+    def summary(self):
+        # avgRate = (self.price - self.avgHoldingPrice) /self.price
+        avgRate = self.currEarn / self.maxHoldingCost
+        console.print('%4s/%s [yellow]%9s[/yellow] [magenta]平均成本:%9s[/magenta] |'%(
+            self.X, self.Y, 
+            fmtPrice(self.price, self.priceDecimal), 
+            fmtPrice(self.avgHoldingPrice, self.priceDecimal)
+        ), end=' ')
+
+        console.print('%8s %4s | [yellow]收益:%6.2f[/yellow] [green]收益率:%6.2f%%[/green] | 成本/持仓价值:%6.2f / %6.2f'%(
+            fmtQty(self.holdingQty, self.qtyDecimal), 
+            self.X, self.currEarn, avgRate * 100, self.holdingCost, self.currHoldingValue
+        ))
 
     def cancel_all_orders(self):
         orders = self.client.get_open_orders(symbol=self.symbol)
@@ -149,7 +162,7 @@ class SpotBot:
 
         qty = fmtQty(qty_X, self.qtyDecimal)
 
-        console.print('> %s %s (%s / %s)'%(buy_or_sell, qty, self.X, self.Y), end=' ')
+        console.print('> %s %s %s with %s'%(buy_or_sell, qty, self.X, self.Y), end=' ')
         try:
             if buy_or_sell == 'buy':
                 self.client.order_market_buy(symbol=self.symbol, quantity=qty)
@@ -167,14 +180,14 @@ class SpotBot:
     def place_order(self, buy_or_sell, qty_X, atPrice=None, atPercent=None):
         assert buy_or_sell in ['sel', 'buy']
         if atPrice is None:
-            atPrice = self.lastPrice * atPercent
+            atPrice = self.price * atPercent
 
-        if buy_or_sell == 'buy' and atPrice > self.lastPrice:
-            print('Wrong buy order atPrice(%.4f) > lastPrice(%.4f)'%(atPrice, self.lastPrice))
+        if buy_or_sell == 'buy' and atPrice > self.price:
+            print('Wrong buy order atPrice(%.4f) > price(%.4f)'%(atPrice, self.price))
             return 0
 
-        if buy_or_sell == 'sel' and atPrice < self.lastPrice:
-            print('Wrong sell order atPrice(%.4f) < lastPrice(%.4f)'%(atPrice, self.lastPrice))
+        if buy_or_sell == 'sel' and atPrice < self.price:
+            print('Wrong sell order atPrice(%.4f) < price(%.4f)'%(atPrice, self.price))
             return 0
 
         qty_Y = atPrice * qty_X
@@ -212,10 +225,10 @@ if __name__ == '__main__':
             if trade.sync(client) != 0:
                 trade.cancel_all_orders()
                 trade.summary()
-                holdingQty, avgHoldingPrice, lastPrice = trade.holdingQty, trade.avgHoldingPrice, trade.lastPrice
-                eachActionQty = eachActionUSD / lastPrice
-                trade.place_order('sel', min(holdingQty, eachActionQty), atPrice=max(lastPrice, avgHoldingPrice)*(1 + wave))
-                trade.place_order('buy', eachActionQty,                  atPrice=min(lastPrice, avgHoldingPrice)*(1 - wave))
+                holdingQty, avgHoldingPrice, price = trade.holdingQty, trade.avgHoldingPrice, trade.price
+                eachActionQty = eachActionUSD / price
+                trade.place_order('sel', min(holdingQty, eachActionQty), atPrice=max(price, avgHoldingPrice)*(1 + wave))
+                trade.place_order('buy', eachActionQty,                  atPrice=min(price, avgHoldingPrice)*(1 - wave))
                 print()
 
         time.sleep(60)
